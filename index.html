@@ -13,14 +13,68 @@
   </header>
 
   <section id="controls">
-    <button id="prev-week">前の週</button>
-    <button id="next-week">次の週</button>
     <span id="week-range"></span>
   </section>
 
   <section id="calendar-container">
-    <!-- カレンダーをここに描画 -->
+    <!-- カレンダー描画 -->
   </section>
+
+  <section id="admin">
+    <h2>番組情報の追加</h2>
+    <p>以下を入力して「JSON を生成」すると追加用のオブジェクトが出ます。出力結果をコピーして <code>data/releases.json</code> の配列に貼り付け、コミットしてください。</p>
+
+    <div class="form-row">
+      <label>番組名：<input type="text" id="anime_title" placeholder="タイトルA" /></label>
+    </div>
+    <div class="form-row">
+      <label>URL：<input type="text" id="detail_url" placeholder="https://example.com/animeA/ep5" /></label>
+    </div>
+    <div class="form-row">
+      <label>プラットフォーム：
+        <select id="platform_select">
+          <option value="Crunchyroll" data-color="#1F9EF0" data-domain="crunchyroll.com">Crunchyroll</option>
+          <option value="dアニメストア" data-color="#E53935" data-domain="anime.dmkt-sp.jp">dアニメストア</option>
+          <option value="Netflix" data-color="#141414" data-domain="netflix.com">Netflix</option>
+          <!-- 必要ならここに追加 -->
+        </select>
+      </label>
+    </div>
+    <div class="form-row">
+      <label>曜日：
+        <select id="weekday_select">
+          <option value="0">日</option>
+          <option value="1">月</option>
+          <option value="2">火</option>
+          <option value="3">水</option>
+          <option value="4">木</option>
+          <option value="5">金</option>
+          <option value="6">土</option>
+        </select>
+      </label>
+      <label>時間（ローカル、24h形式 hh:mm）：<input type="time" id="time_input" /></label>
+    </div>
+    <button id="generate-json">JSON を生成</button>
+
+    <div>
+      <h3>生成結果（これを既存配列に追加）</h3>
+      <pre id="generated-json" class="small"></pre>
+    </div>
+
+    <div>
+      <p>削除はカレンダー上の該当表示をクリックすると、削除用の JSON 断片と手順が出ます。</p>
+    </div>
+  </section>
+
+  <div id="delete-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>このエントリを削除しますか？</h3>
+      <div id="delete-info" class="small"></div>
+      <p>以下のオブジェクトを <code>data/releases.json</code> から手動で削除してください：</p>
+      <pre id="delete-json" class="small"></pre>
+      <button id="close-delete">閉じる</button>
+    </div>
+  </div>
 
   <footer>
     <p>管理は <code>data/releases.json</code> を編集してください。</p>
