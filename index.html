@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>アニメ最速配信カレンダー</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>アニメ最速配信カレンダー（週表示・日曜始まり）</h1>
+    <p>目的：サブスクで最新話を最速で見る</p>
+  </header>
+
+  <section id="controls">
+    <button id="prev-week">前の週</button>
+    <button id="next-week">次の週</button>
+    <span id="week-range"></span>
+  </section>
+
+  <section id="calendar-container">
+    <!-- カレンダーをここに描画 -->
+  </section>
+
+  <footer>
+    <p>管理は <code>data/releases.json</code> を編集してください。</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
