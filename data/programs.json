@@ -1,0 +1,23 @@
+[
+  {
+    "media": "Netflix",
+    "weekday": 1,
+    "time": "00:00",
+    "title": "サンプル番組A",
+    "quarter": "2026年春"
+  },
+  {
+    "media": "ABEMA",
+    "weekday": 3,
+    "time": "23:30",
+    "title": "サンプル番組B",
+    "quarter": "2026年春"
+  },
+  {
+    "media": "dアニメ",
+    "weekday": 6,
+    "time": "21:00",
+    "title": "サンプル番組C",
+    "quarter": "2026年春"
+  }
+]
