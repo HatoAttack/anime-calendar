@@ -9,6 +9,7 @@
 <body>
   <main class="page">
     <header class="page-header">
+      <button id="open-json-editor" class="json-editor-open" type="button">JSON編集ツール</button>
       <h1>アニメ配信カレンダー</h1>
       <p>アクセス日を中央にした 1 週間表示（前後 3 日）</p>
       <p id="date-range" class="date-range"></p>
@@ -26,9 +27,9 @@
       </table>
     </section>
 
-    <section class="csv-tools" aria-label="CSV入力と読み書き">
-      <h2>番組データ管理（CSV）</h2>
-      <p class="csv-caption">1レコードは <code>media,weekday,time,title</code> の4要素です。</p>
+    <section class="csv-tools" aria-label="番組データ入力">
+      <h2>番組データ入力</h2>
+      <p class="csv-caption">1レコードは <code>quarter,weekday,media,time,title</code> の順で編集できます（JSON編集ツールから入出力）。</p>
 
       <form id="program-form" class="form-row">
         <label class="field-media">
@@ -68,16 +69,33 @@
           <input id="title-input" type="text" placeholder="作品タイトル" required />
         </label>
 
+        <label class="field-quarter">
+          四半期
+          <input id="quarter-input" type="text" placeholder="2026年春" required />
+        </label>
+
         <button type="submit" class="primary">番組データを追加</button>
       </form>
-
-      <div class="csv-actions">
-        <button id="export-csv" type="button">CSVを書き出し</button>
-        <button id="import-csv" type="button">CSVを読み込み</button>
-        <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
-      </div>
     </section>
   </main>
+
+  <div id="json-editor-modal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="json-editor-title">
+      <div class="modal-header">
+        <h2 id="json-editor-title">JSONファイル編集ツール</h2>
+        <button id="close-json-editor" type="button" class="ghost">閉じる</button>
+      </div>
+      <p class="modal-caption">CSV時と同じ入力ルールで、<strong>quarter → weekday → media → time → title</strong> の順に編集できます。</p>
+      <div id="json-editor-rows" class="json-editor-rows" aria-label="JSON編集行"></div>
+      <div class="modal-actions">
+        <button id="add-editor-row" type="button">行を追加</button>
+        <button id="apply-json" type="button" class="primary">反映</button>
+        <button id="export-json" type="button">JSONを書き出し</button>
+        <button id="import-json" type="button">JSONを読み込み</button>
+        <input id="json-file-input" type="file" accept="application/json,.json" hidden />
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

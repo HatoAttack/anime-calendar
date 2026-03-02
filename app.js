@@ -11,19 +11,53 @@ const MEDIA_DOMAINS = {
   "Lemino": "lemino.docomo.ne.jp"
 };
 
-let programData = [
-  ["Netflix", 1, "00:00", "サンプル番組A"],
-  ["ABEMA", 3, "23:30", "サンプル番組B"],
-  ["dアニメ", 6, "21:00", "サンプル番組C"]
+const MEDIA_OPTIONS = Object.keys(MEDIA_DOMAINS);
+const WEEKDAY_OPTIONS = [
+  { value: 1, label: "月" },
+  { value: 2, label: "火" },
+  { value: 3, label: "水" },
+  { value: 4, label: "木" },
+  { value: 5, label: "金" },
+  { value: 6, label: "土" },
+  { value: 0, label: "日" }
 ];
 
-document.addEventListener("DOMContentLoaded", () => {
+const DEFAULT_PROGRAM_DATA = [
+  ["Netflix", 1, "00:00", "サンプル番組A", "2026年春"],
+  ["ABEMA", 3, "23:30", "サンプル番組B", "2026年春"],
+  ["dアニメ", 6, "21:00", "サンプル番組C", "2026年春"]
+];
+
+let programData = [...DEFAULT_PROGRAM_DATA];
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadProgramData();
   renderCalendar(new Date());
-  setupCsvTools();
+  setupProgramForm();
+  setupJsonEditor();
 });
+
+
+async function loadProgramData() {
+  try {
+    const response = await fetch("data/programs.json", { cache: "no-store" });
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await response.json();
+    const normalized = fromJsonRecords(data);
+    if (normalized.length > 0) {
+      programData = normalized;
+    }
+  } catch {
+    programData = [...DEFAULT_PROGRAM_DATA];
+  }
+}
 
 function renderCalendar(accessDate) {
   const days = getCenteredWeek(accessDate);
+  const viewingQuarter = getQuarterLabel(accessDate);
   const dateHeaderRow = document.getElementById("header-date-row");
   const weekdayHeaderRow = document.getElementById("header-weekday-row");
   const programRow = document.getElementById("program-row");
@@ -44,7 +78,7 @@ function renderCalendar(accessDate) {
       cell.classList.add("today");
     }
 
-    const dayPrograms = getProgramsByWeekday(date.getDay());
+    const dayPrograms = getProgramsByWeekday(date.getDay(), viewingQuarter);
     if (dayPrograms.length === 0) {
       const placeholder = document.createElement("span");
       placeholder.className = "placeholder";
@@ -65,40 +99,15 @@ function renderCalendar(accessDate) {
   document.getElementById("date-range").textContent = `表示範囲: ${rangeText}`;
 }
 
-function setupCsvTools() {
+function setupProgramForm() {
   const form = document.getElementById("program-form");
   const mediaInput = document.getElementById("media-input");
   const weekdayInput = document.getElementById("weekday-input");
   const timeInput = document.getElementById("time-input");
   const titleInput = document.getElementById("title-input");
-  const fileInput = document.getElementById("csv-file-input");
+  const quarterInput = document.getElementById("quarter-input");
 
-  document.getElementById("export-csv").addEventListener("click", () => {
-    downloadCsv(toCsv(programData));
-  });
-
-  document.getElementById("import-csv").addEventListener("click", () => {
-    fileInput.click();
-  });
-
-  fileInput.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const text = await file.text();
-    const parsed = parseCsv(text);
-    if (parsed.length === 0) {
-      alert("読み込めるCSVデータがありません。\nmedia,weekday,hh:mm,title 形式で入力してください。");
-      fileInput.value = "";
-      return;
-    }
-
-    programData = parsed;
-    renderCalendar(new Date());
-    fileInput.value = "";
-  });
+  quarterInput.value = getNextQuarterLabel(new Date());
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -107,7 +116,8 @@ function setupCsvTools() {
       mediaInput.value,
       Number(weekdayInput.value),
       timeInput.value,
-      titleInput.value.trim()
+      titleInput.value.trim(),
+      quarterInput.value.trim() || getNextQuarterLabel(new Date())
     ];
 
     if (!newRow[3]) {
@@ -118,67 +128,242 @@ function setupCsvTools() {
     programData.push(newRow);
     renderCalendar(new Date());
     form.reset();
+    quarterInput.value = getNextQuarterLabel(new Date());
   });
 }
 
-function downloadCsv(csv) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+function setupJsonEditor() {
+  const openButton = document.getElementById("open-json-editor");
+  const closeButton = document.getElementById("close-json-editor");
+  const modal = document.getElementById("json-editor-modal");
+  const editorRows = document.getElementById("json-editor-rows");
+  const addRowButton = document.getElementById("add-editor-row");
+  const applyButton = document.getElementById("apply-json");
+  const exportButton = document.getElementById("export-json");
+  const importButton = document.getElementById("import-json");
+  const fileInput = document.getElementById("json-file-input");
+
+  openButton.addEventListener("click", () => {
+    renderEditorRows(editorRows, programData);
+    modal.hidden = false;
+  });
+
+  closeButton.addEventListener("click", () => {
+    modal.hidden = true;
+  });
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.hidden = true;
+    }
+  });
+
+  addRowButton.addEventListener("click", () => {
+    const defaultQuarter = getNextQuarterLabel(new Date());
+    editorRows.appendChild(createEditorRow([MEDIA_OPTIONS[0], 1, "00:00", "", defaultQuarter]));
+  });
+
+  applyButton.addEventListener("click", () => {
+    const normalized = collectEditorRows(editorRows);
+    if (normalized.length === 0) {
+      alert("有効な番組データがありません。\n入力内容を確認してください。");
+      return;
+    }
+
+    programData = normalized;
+    renderCalendar(new Date());
+    alert("JSON相当データを反映しました。\n※ リポジトリ保存は別途コミットが必要です。");
+    modal.hidden = true;
+  });
+
+  exportButton.addEventListener("click", () => {
+    const json = JSON.stringify(toJsonRecords(programData), null, 2);
+    downloadJson(json);
+  });
+
+  importButton.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const normalized = fromJsonRecords(parsed);
+      if (normalized.length === 0) {
+        alert("読み込めるJSONデータがありません。");
+        fileInput.value = "";
+        return;
+      }
+
+      programData = normalized;
+      renderCalendar(new Date());
+      renderEditorRows(editorRows, programData);
+      fileInput.value = "";
+    } catch {
+      alert("JSONの読み込みに失敗しました。");
+      fileInput.value = "";
+    }
+  });
+}
+
+function renderEditorRows(container, rows) {
+  container.innerHTML = "";
+  rows.forEach((row) => {
+    container.appendChild(createEditorRow(row));
+  });
+}
+
+function createEditorRow([media, weekday, time, title, quarter]) {
+  const row = document.createElement("div");
+  row.className = "form-row editor-row";
+
+  row.appendChild(createInputField("四半期", "field-quarter", "text", quarter, "2026年春"));
+  row.appendChild(createWeekdayField(weekday));
+  row.appendChild(createMediaField(media));
+  row.appendChild(createInputField("時間", "field-time", "time", time, ""));
+  row.appendChild(createInputField("タイトル", "field-title", "text", title, "作品タイトル"));
+
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.className = "row-remove";
+  removeButton.textContent = "削除";
+  removeButton.addEventListener("click", () => {
+    row.remove();
+  });
+  row.appendChild(removeButton);
+
+  return row;
+}
+
+function createInputField(labelText, fieldClass, type, value, placeholder) {
+  const label = document.createElement("label");
+  label.className = fieldClass;
+  label.textContent = labelText;
+
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value;
+  if (placeholder) {
+    input.placeholder = placeholder;
+  }
+
+  label.appendChild(input);
+  return label;
+}
+
+function createMediaField(selectedMedia) {
+  const label = document.createElement("label");
+  label.className = "field-media";
+  label.textContent = "メディア";
+
+  const select = document.createElement("select");
+  MEDIA_OPTIONS.forEach((media) => {
+    const option = document.createElement("option");
+    option.value = media;
+    option.textContent = media;
+    option.selected = media === selectedMedia;
+    select.appendChild(option);
+  });
+
+  label.appendChild(select);
+  return label;
+}
+
+function createWeekdayField(selectedWeekday) {
+  const label = document.createElement("label");
+  label.className = "field-weekday";
+  label.textContent = "曜日";
+
+  const select = document.createElement("select");
+  WEEKDAY_OPTIONS.forEach(({ value, label: dayLabel }) => {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = dayLabel;
+    option.selected = Number(selectedWeekday) === value;
+    select.appendChild(option);
+  });
+
+  label.appendChild(select);
+  return label;
+}
+
+function collectEditorRows(container) {
+  const rows = Array.from(container.querySelectorAll(".editor-row"));
+  return rows
+    .map((row) => {
+      const quarter = row.querySelector(".field-quarter input")?.value.trim() || "";
+      const weekday = Number(row.querySelector(".field-weekday select")?.value ?? NaN);
+      const media = row.querySelector(".field-media select")?.value.trim() || "";
+      const time = row.querySelector(".field-time input")?.value.trim() || "";
+      const title = row.querySelector(".field-title input")?.value.trim() || "";
+      return [media, weekday, time, title, quarter];
+    })
+    .filter((item) => {
+      const [media, weekday, time, title, quarter] = item;
+      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && quarter;
+    });
+}
+
+function downloadJson(json) {
+  const blob = new Blob([json], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "anime-programs.csv";
+  link.download = "anime-programs.json";
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
 }
 
-function toCsv(rows) {
-  const header = "media,weekday,time,title";
-  const body = rows.map((row) => row.map(escapeCsvField).join(",")).join("\n");
-  return `${header}\n${body}`;
+function toJsonRecords(rows) {
+  return rows.map(([media, weekday, time, title, quarter]) => ({
+    media,
+    weekday,
+    time,
+    title,
+    quarter
+  }));
 }
 
-function parseCsv(text) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "");
-
-  if (lines.length === 0) {
+function fromJsonRecords(records) {
+  if (!Array.isArray(records)) {
     return [];
   }
 
-  const dataLines = ["media,weekday,time,title", "media,weekday,hh:mm,title"].includes(lines[0].toLowerCase()) ? lines.slice(1) : lines;
-
-  return dataLines
-    .map((line) => line.split(",").map((value) => value.trim()))
-    .filter((cols) => cols.length >= 4)
-    .map(([media, weekdayRaw, time, ...titleParts]) => {
-      const weekday = Number(weekdayRaw);
-      const title = titleParts.join(",");
-      return [media, weekday, time, title];
+  return records
+    .map((item) => {
+      const weekday = Number(item.weekday);
+      return [
+        String(item.media ?? "").trim(),
+        weekday,
+        String(item.time ?? "").trim(),
+        String(item.title ?? "").trim(),
+        String(item.quarter ?? "").trim()
+      ];
     })
     .filter((item) => {
-      const [, weekday, time, title] = item;
-      return Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title;
+      const [media, weekday, time, title, quarter] = item;
+      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && quarter;
     });
 }
 
-function escapeCsvField(value) {
-  const str = String(value);
-  return /[",\n]/.test(str) ? `"${str.replaceAll('"', '""')}"` : str;
-}
-
-function getProgramsByWeekday(weekday) {
+function getProgramsByWeekday(weekday, quarter) {
   return programData
-    .filter((item) => item[1] === weekday)
+    .filter((item) => item[1] === weekday && item[4] === quarter)
     .sort((a, b) => a[2].localeCompare(b[2]))
-    .map(([media, day, time, title]) => ({
+    .map(([media, day, time, title, season]) => ({
       media,
       weekday: day,
       time,
-      title
+      title,
+      quarter: season
     }));
 }
 
@@ -202,7 +387,7 @@ function createProgramCard(program) {
   icon.height = 16;
 
   const schedule = document.createElement("span");
-  schedule.textContent = `${WEEKDAY_LABELS[program.weekday]} / ${program.time}`;
+  schedule.textContent = `${WEEKDAY_LABELS[program.weekday]} / ${program.time} / ${program.quarter}`;
 
   meta.appendChild(icon);
   meta.appendChild(schedule);
@@ -226,6 +411,37 @@ function getCenteredWeek(centerDate) {
     days.push(d);
   }
   return days;
+}
+
+function getNextQuarterLabel(baseDate) {
+  const currentQuarter = getQuarterInfo(baseDate);
+  const nextSeasonIndex = (currentQuarter.seasonIndex + 1) % 4;
+  const nextYear = currentQuarter.seasonIndex === 3 ? baseDate.getFullYear() + 1 : baseDate.getFullYear();
+  return `${nextYear}年${currentQuarter.seasonLabels[nextSeasonIndex]}`;
+}
+
+function getQuarterLabel(baseDate) {
+  const currentQuarter = getQuarterInfo(baseDate);
+  return `${baseDate.getFullYear()}年${currentQuarter.seasonLabels[currentQuarter.seasonIndex]}`;
+}
+
+function getQuarterInfo(baseDate) {
+  const seasonLabels = ["冬", "春", "夏", "秋"];
+  const month = baseDate.getMonth() + 1;
+  let currentSeasonIndex = 0;
+
+  if (month >= 4 && month <= 6) {
+    currentSeasonIndex = 1;
+  } else if (month >= 7 && month <= 9) {
+    currentSeasonIndex = 2;
+  } else if (month >= 10 && month <= 12) {
+    currentSeasonIndex = 3;
+  }
+
+  return {
+    seasonLabels,
+    seasonIndex: currentSeasonIndex
+  };
 }
 
 function formatMonthDay(date) {
