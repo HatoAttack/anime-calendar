@@ -30,7 +30,7 @@ body {
 
 .json-editor-open {
   position: absolute;
-  left: 0;
+  right: 0;
   top: 0;
   border: 0;
   border-radius: 8px;
@@ -186,6 +186,20 @@ body {
   width: 120px;
 }
 
+
+.quarter-fields {
+  display: flex;
+  gap: 8px;
+}
+
+.field-quarter-year input {
+  width: 84px;
+}
+
+.field-quarter-season select {
+  width: 86px;
+}
+
 .form-row input,
 .form-row select {
   border: 1px solid #c7cee5;
@@ -238,7 +252,6 @@ body {
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 10px;
 }
@@ -246,6 +259,13 @@ body {
 .modal-header h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.quarter-counts {
+  margin: 0 8px 0 auto;
+  font-size: 0.9rem;
+  color: #4b5475;
+  white-space: nowrap;
 }
 
 .modal-caption {

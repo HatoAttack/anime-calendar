@@ -9,7 +9,7 @@
 <body>
   <main class="page">
     <header class="page-header">
-      <button id="open-json-editor" class="json-editor-open" type="button">JSON編集ツール</button>
+      <button id="open-json-editor" class="json-editor-open" type="button">番組データ編集</button>
       <h1>アニメ配信カレンダー</h1>
       <p>アクセス日を中央にした 1 週間表示（前後 3 日）</p>
       <p id="date-range" class="date-range"></p>
@@ -26,67 +26,17 @@
         </tbody>
       </table>
     </section>
-
-    <section class="csv-tools" aria-label="番組データ入力">
-      <h2>番組データ入力</h2>
-      <p class="csv-caption">1レコードは <code>quarter,weekday,media,time,title</code> の順で編集できます（JSON編集ツールから入出力）。</p>
-
-      <form id="program-form" class="form-row">
-        <label class="field-media">
-          メディア
-          <select id="media-input" required>
-            <option value="Netflix">Netflix</option>
-            <option value="Prime Video">Prime Video</option>
-            <option value="Disney+">Disney+</option>
-            <option value="U-NEXT">U-NEXT</option>
-            <option value="ABEMA">ABEMA</option>
-            <option value="dアニメ">dアニメ</option>
-            <option value="Hulu">Hulu</option>
-            <option value="Lemino">Lemino</option>
-          </select>
-        </label>
-
-        <label class="field-weekday">
-          曜日
-          <select id="weekday-input" required>
-            <option value="1">月</option>
-            <option value="2">火</option>
-            <option value="3">水</option>
-            <option value="4">木</option>
-            <option value="5">金</option>
-            <option value="6">土</option>
-            <option value="0">日</option>
-          </select>
-        </label>
-
-        <label class="field-time">
-          時間
-          <input id="time-input" type="time" required />
-        </label>
-
-        <label class="field-title">
-          タイトル
-          <input id="title-input" type="text" placeholder="作品タイトル" required />
-        </label>
-
-        <label class="field-quarter">
-          四半期
-          <input id="quarter-input" type="text" placeholder="2026年春" required />
-        </label>
-
-        <button type="submit" class="primary">番組データを追加</button>
-      </form>
-    </section>
   </main>
 
   <div id="json-editor-modal" class="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="json-editor-title">
       <div class="modal-header">
-        <h2 id="json-editor-title">JSONファイル編集ツール</h2>
+        <h2 id="json-editor-title">番組データ編集</h2>
+        <p id="quarter-counts" class="quarter-counts" aria-live="polite"></p>
         <button id="close-json-editor" type="button" class="ghost">閉じる</button>
       </div>
       <p class="modal-caption">CSV時と同じ入力ルールで、<strong>quarter → weekday → media → time → title</strong> の順に編集できます。</p>
-      <div id="json-editor-rows" class="json-editor-rows" aria-label="JSON編集行"></div>
+      <div id="json-editor-rows" class="json-editor-rows" aria-label="番組データ編集行"></div>
       <div class="modal-actions">
         <button id="add-editor-row" type="button">行を追加</button>
         <button id="apply-json" type="button" class="primary">反映</button>
