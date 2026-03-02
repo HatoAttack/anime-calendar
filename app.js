@@ -1,4 +1,5 @@
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+const SEASON_OPTIONS = ["春", "夏", "秋", "冬"];
 
 const MEDIA_DOMAINS = {
   "Netflix": "netflix.com",
@@ -33,10 +34,9 @@ let programData = [...DEFAULT_PROGRAM_DATA];
 document.addEventListener("DOMContentLoaded", async () => {
   await loadProgramData();
   renderCalendar(new Date());
-  setupProgramForm();
   setupJsonEditor();
+  updateQuarterCounts();
 });
-
 
 async function loadProgramData() {
   try {
@@ -99,39 +99,6 @@ function renderCalendar(accessDate) {
   document.getElementById("date-range").textContent = `表示範囲: ${rangeText}`;
 }
 
-function setupProgramForm() {
-  const form = document.getElementById("program-form");
-  const mediaInput = document.getElementById("media-input");
-  const weekdayInput = document.getElementById("weekday-input");
-  const timeInput = document.getElementById("time-input");
-  const titleInput = document.getElementById("title-input");
-  const quarterInput = document.getElementById("quarter-input");
-
-  quarterInput.value = getNextQuarterLabel(new Date());
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const newRow = [
-      mediaInput.value,
-      Number(weekdayInput.value),
-      timeInput.value,
-      titleInput.value.trim(),
-      quarterInput.value.trim() || getNextQuarterLabel(new Date())
-    ];
-
-    if (!newRow[3]) {
-      alert("タイトルを入力してください。");
-      return;
-    }
-
-    programData.push(newRow);
-    renderCalendar(new Date());
-    form.reset();
-    quarterInput.value = getNextQuarterLabel(new Date());
-  });
-}
-
 function setupJsonEditor() {
   const openButton = document.getElementById("open-json-editor");
   const closeButton = document.getElementById("close-json-editor");
@@ -145,6 +112,7 @@ function setupJsonEditor() {
 
   openButton.addEventListener("click", () => {
     renderEditorRows(editorRows, programData);
+    updateQuarterCounts();
     modal.hidden = false;
   });
 
@@ -164,15 +132,16 @@ function setupJsonEditor() {
   });
 
   applyButton.addEventListener("click", () => {
-    const normalized = collectEditorRows(editorRows);
-    if (normalized.length === 0) {
-      alert("有効な番組データがありません。\n入力内容を確認してください。");
+    const result = collectEditorRows(editorRows);
+    if (result.hasInvalidYear) {
+      alert("年は半角数字4桁で入力してください。");
       return;
     }
 
-    programData = normalized;
+    programData = result.rows;
     renderCalendar(new Date());
-    alert("JSON相当データを反映しました。\n※ リポジトリ保存は別途コミットが必要です。");
+    updateQuarterCounts();
+    alert("番組データを反映しました。\n※ リポジトリ保存は別途コミットが必要です。");
     modal.hidden = true;
   });
 
@@ -204,6 +173,7 @@ function setupJsonEditor() {
       programData = normalized;
       renderCalendar(new Date());
       renderEditorRows(editorRows, programData);
+      updateQuarterCounts();
       fileInput.value = "";
     } catch {
       alert("JSONの読み込みに失敗しました。");
@@ -223,7 +193,7 @@ function createEditorRow([media, weekday, time, title, quarter]) {
   const row = document.createElement("div");
   row.className = "form-row editor-row";
 
-  row.appendChild(createInputField("四半期", "field-quarter", "text", quarter, "2026年春"));
+  row.appendChild(createQuarterFields(quarter));
   row.appendChild(createWeekdayField(weekday));
   row.appendChild(createMediaField(media));
   row.appendChild(createInputField("時間", "field-time", "time", time, ""));
@@ -255,6 +225,46 @@ function createInputField(labelText, fieldClass, type, value, placeholder) {
 
   label.appendChild(input);
   return label;
+}
+
+function createQuarterFields(quarterLabel) {
+  const defaultQuarter = parseQuarterLabel(getNextQuarterLabel(new Date()));
+  const parsedQuarter = parseQuarterLabel(quarterLabel);
+  const yearValue = parsedQuarter?.year ?? defaultQuarter.year;
+  const seasonValue = parsedQuarter?.season ?? defaultQuarter.season;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "quarter-fields";
+
+  const yearLabel = document.createElement("label");
+  yearLabel.className = "field-quarter-year";
+  yearLabel.textContent = "年";
+
+  const yearInput = document.createElement("input");
+  yearInput.type = "text";
+  yearInput.inputMode = "numeric";
+  yearInput.placeholder = "2026";
+  yearInput.maxLength = 4;
+  yearInput.value = yearValue;
+  yearLabel.appendChild(yearInput);
+
+  const seasonLabel = document.createElement("label");
+  seasonLabel.className = "field-quarter-season";
+  seasonLabel.textContent = "季節";
+
+  const seasonSelect = document.createElement("select");
+  SEASON_OPTIONS.forEach((season) => {
+    const option = document.createElement("option");
+    option.value = season;
+    option.textContent = season;
+    option.selected = season === seasonValue;
+    seasonSelect.appendChild(option);
+  });
+  seasonLabel.appendChild(seasonSelect);
+
+  wrapper.appendChild(yearLabel);
+  wrapper.appendChild(seasonLabel);
+  return wrapper;
 }
 
 function createMediaField(selectedMedia) {
@@ -295,19 +305,60 @@ function createWeekdayField(selectedWeekday) {
 
 function collectEditorRows(container) {
   const rows = Array.from(container.querySelectorAll(".editor-row"));
-  return rows
+  let hasInvalidYear = false;
+
+  const normalizedRows = rows
     .map((row) => {
-      const quarter = row.querySelector(".field-quarter input")?.value.trim() || "";
+      const quarterYear = row.querySelector(".field-quarter-year input")?.value.trim() || "";
+      const quarterSeason = row.querySelector(".field-quarter-season select")?.value.trim() || "";
       const weekday = Number(row.querySelector(".field-weekday select")?.value ?? NaN);
       const media = row.querySelector(".field-media select")?.value.trim() || "";
       const time = row.querySelector(".field-time input")?.value.trim() || "";
       const title = row.querySelector(".field-title input")?.value.trim() || "";
-      return [media, weekday, time, title, quarter];
+
+      const yearValid = /^\d{4}$/.test(quarterYear);
+      if (quarterYear && !yearValid) {
+        hasInvalidYear = true;
+      }
+
+      const quarter = composeQuarterLabel(quarterYear, quarterSeason);
+      return [media, weekday, time, title, quarter, yearValid, quarterSeason];
     })
     .filter((item) => {
-      const [media, weekday, time, title, quarter] = item;
-      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && quarter;
-    });
+      const [media, weekday, time, title, quarter, yearValid, quarterSeason] = item;
+      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && quarter && yearValid && SEASON_OPTIONS.includes(quarterSeason);
+    })
+    .map(([media, weekday, time, title, quarter]) => [media, weekday, time, title, quarter]);
+
+  return { rows: normalizedRows, hasInvalidYear };
+}
+
+function composeQuarterLabel(year, season) {
+  if (!/^\d{4}$/.test(year) || !SEASON_OPTIONS.includes(season)) {
+    return "";
+  }
+  return `${year}年${season}`;
+}
+
+function parseQuarterLabel(value) {
+  const match = String(value ?? "").trim().match(/^(\d{4})年(春|夏|秋|冬)$/);
+  if (!match) {
+    return null;
+  }
+  return { year: match[1], season: match[2] };
+}
+
+function updateQuarterCounts(rows = programData) {
+  const label = document.getElementById("quarter-counts");
+  if (!label) {
+    return;
+  }
+
+  const currentQuarter = getQuarterLabel(new Date());
+  const nextQuarter = getNextQuarterLabel(new Date());
+  const currentCount = rows.filter((item) => item[4] === currentQuarter).length;
+  const nextCount = rows.filter((item) => item[4] === nextQuarter).length;
+  label.textContent = `現クール: ${currentCount}件 / 次クール: ${nextCount}件`;
 }
 
 function downloadJson(json) {
@@ -350,7 +401,7 @@ function fromJsonRecords(records) {
     })
     .filter((item) => {
       const [media, weekday, time, title, quarter] = item;
-      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && quarter;
+      return media && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title && /^\d{4}年(春|夏|秋|冬)$/.test(quarter);
     });
 }
 
