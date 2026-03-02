@@ -1,95 +1,197 @@
-* { box-sizing:border-box; }
-body {
-  font-family: system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
-  margin:0;
-  padding:1rem;
-  background:#f5f5f8;
-  color:#1f1f3a;
-}
-header { margin-bottom:1rem; }
-h1 { margin:0; font-size:1.5rem; }
-#controls { margin:0.5rem 0; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
-button { padding:0.4rem 0.8rem; border:none; border-radius:6px; cursor:pointer; background:#444; color:#fff; }
-#week-range { font-weight:600; }
-#calendar-container { overflow-x:auto; }
-.calendar {
-  display:grid;
-  grid-template-columns: repeat(7, minmax(160px, 1fr));
-  gap:1px;
-  background:#ccc;
-}
-.day {
-  background:#fff;
-  padding:0.5rem;
-  min-width:160px;
-  display:flex;
-  flex-direction:column;
-}
-.day-header {
-  font-weight:700;
-  margin-bottom:0.4rem;
-  border-bottom:1px solid #ddd;
-  padding-bottom:4px;
-}
-.release {
-  background:#f0f8ff;
-  padding:6px;
-  margin:4px 0;
-  border-radius:6px;
-  display:flex;
-  gap:6px;
-  align-items:flex-start;
-  font-size:0.9rem;
-  position:relative;
-}
-.release .badge {
-  display:flex;
-  align-items:center;
-  gap:4px;
-  flex-shrink:0;
-}
-.platform {
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  padding:2px 6px;
-  border-radius:4px;
-  font-size:0.7rem;
-  font-weight:600;
-  color:#fff;
-}
-.time {
-  margin-left:auto;
-  font-weight:600;
-  white-space:nowrap;
-}
-.title-link {
-  text-decoration:none;
-  color:#1f1f3a;
-  font-weight:600;
-}
-.small {
-  font-size:0.7rem;
-  color:#555;
+* {
+  box-sizing: border-box;
 }
 
-/* モーダル */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.3);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:1rem;
-  z-index:100;
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f4f6fb;
+  color: #1d2440;
 }
-.modal.hidden { display:none; }
-.modal-content {
-  background:#fff;
-  padding:1rem 1.5rem;
-  border-radius:8px;
-  max-width:500px;
-  width:100%;
-  box-shadow:0 10px 30px rgba(0,0,0,0.15);
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.page-header p {
+  margin: 8px 0 0;
+}
+
+.date-range {
+  font-weight: 700;
+}
+
+.calendar-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 16px;
+  background: #fff;
+  border: 1px solid #d7dbea;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.calendar-table th,
+.calendar-table td {
+  border: 1px solid #d7dbea;
+  text-align: center;
+  vertical-align: top;
+  padding: 10px 8px;
+}
+
+.calendar-table thead tr:first-child th {
+  font-size: 0.95rem;
+  background: #eef2ff;
+}
+
+.calendar-table thead tr:nth-child(2) th {
+  font-size: 0.9rem;
+  background: #f6f8ff;
+}
+
+.calendar-table td {
+  min-height: 140px;
+  height: 140px;
+  background: #ffffff;
+}
+
+.today {
+  background: #fff4d6 !important;
+}
+
+.program-card {
+  border: 1px solid #d7dbea;
+  border-radius: 8px;
+  text-align: left;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #f8faff;
+}
+
+.program-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.program-meta {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #4b5475;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.placeholder {
+  display: inline-block;
+  margin-top: 48px;
+  font-size: 0.85rem;
+  color: #5b6382;
+  line-height: 1.5;
+}
+
+.csv-tools {
+  margin-top: 20px;
+  background: #fff;
+  border: 1px solid #d7dbea;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.csv-tools h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.csv-caption {
+  margin: 8px 0 14px;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.form-row label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.field-media,
+.field-weekday,
+.field-time {
+  flex: 0 0 auto;
+}
+
+.field-media select {
+  width: 160px;
+}
+
+.field-weekday select {
+  width: 74px;
+}
+
+.field-time input {
+  width: 110px;
+}
+
+.field-title {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.field-title input {
+  width: 100%;
+}
+
+.form-row input,
+.form-row select {
+  border: 1px solid #c7cee5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.form-row .primary {
+  border: 0;
+  border-radius: 8px;
+  background: #2d4bdf;
+  color: #fff;
+  padding: 10px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.csv-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.csv-actions button {
+  border: 0;
+  border-radius: 8px;
+  background: #34415f;
+  color: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
 }

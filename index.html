@@ -2,83 +2,82 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>アニメ最速配信カレンダー</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>アニメカレンダー（ベース）</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>アニメ最速配信カレンダー（週表示・日曜始まり）</h1>
-    <p>目的：サブスクで最新話を最速で見る</p>
-  </header>
+  <main class="page">
+    <header class="page-header">
+      <h1>アニメ配信カレンダー</h1>
+      <p>アクセス日を中央にした 1 週間表示（前後 3 日）</p>
+      <p id="date-range" class="date-range"></p>
+    </header>
 
-  <section id="controls">
-    <span id="week-range"></span>
-  </section>
+    <section aria-label="週間カレンダー">
+      <table class="calendar-table">
+        <thead>
+          <tr id="header-date-row"></tr>
+          <tr id="header-weekday-row"></tr>
+        </thead>
+        <tbody>
+          <tr id="program-row"></tr>
+        </tbody>
+      </table>
+    </section>
 
-  <section id="calendar-container">
-    <!-- カレンダー描画 -->
-  </section>
+    <section class="csv-tools" aria-label="CSV入力と読み書き">
+      <h2>番組データ管理（CSV）</h2>
+      <p class="csv-caption">1レコードは <code>media,weekday,time,title</code> の4要素です。</p>
 
-  <section id="admin">
-    <h2>番組情報の追加</h2>
-    <p>以下を入力して「JSON を生成」すると追加用のオブジェクトが出ます。出力結果をコピーして <code>data/releases.json</code> の配列に貼り付け、コミットしてください。</p>
+      <form id="program-form" class="form-row">
+        <label class="field-media">
+          メディア
+          <select id="media-input" required>
+            <option value="Netflix">Netflix</option>
+            <option value="Prime Video">Prime Video</option>
+            <option value="Disney+">Disney+</option>
+            <option value="U-NEXT">U-NEXT</option>
+            <option value="ABEMA">ABEMA</option>
+            <option value="dアニメ">dアニメ</option>
+            <option value="Hulu">Hulu</option>
+            <option value="Lemino">Lemino</option>
+          </select>
+        </label>
 
-    <div class="form-row">
-      <label>番組名：<input type="text" id="anime_title" placeholder="タイトルA" /></label>
-    </div>
-    <div class="form-row">
-      <label>URL：<input type="text" id="detail_url" placeholder="https://example.com/animeA/ep5" /></label>
-    </div>
-    <div class="form-row">
-      <label>プラットフォーム：
-        <select id="platform_select">
-          <option value="Crunchyroll" data-color="#1F9EF0" data-domain="crunchyroll.com">Crunchyroll</option>
-          <option value="dアニメストア" data-color="#E53935" data-domain="anime.dmkt-sp.jp">dアニメストア</option>
-          <option value="Netflix" data-color="#141414" data-domain="netflix.com">Netflix</option>
-          <!-- 必要ならここに追加 -->
-        </select>
-      </label>
-    </div>
-    <div class="form-row">
-      <label>曜日：
-        <select id="weekday_select">
-          <option value="0">日</option>
-          <option value="1">月</option>
-          <option value="2">火</option>
-          <option value="3">水</option>
-          <option value="4">木</option>
-          <option value="5">金</option>
-          <option value="6">土</option>
-        </select>
-      </label>
-      <label>時間（ローカル、24h形式 hh:mm）：<input type="time" id="time_input" /></label>
-    </div>
-    <button id="generate-json">JSON を生成</button>
+        <label class="field-weekday">
+          曜日
+          <select id="weekday-input" required>
+            <option value="1">月</option>
+            <option value="2">火</option>
+            <option value="3">水</option>
+            <option value="4">木</option>
+            <option value="5">金</option>
+            <option value="6">土</option>
+            <option value="0">日</option>
+          </select>
+        </label>
 
-    <div>
-      <h3>生成結果（これを既存配列に追加）</h3>
-      <pre id="generated-json" class="small"></pre>
-    </div>
+        <label class="field-time">
+          時間
+          <input id="time-input" type="time" required />
+        </label>
 
-    <div>
-      <p>削除はカレンダー上の該当表示をクリックすると、削除用の JSON 断片と手順が出ます。</p>
-    </div>
-  </section>
+        <label class="field-title">
+          タイトル
+          <input id="title-input" type="text" placeholder="作品タイトル" required />
+        </label>
 
-  <div id="delete-modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>このエントリを削除しますか？</h3>
-      <div id="delete-info" class="small"></div>
-      <p>以下のオブジェクトを <code>data/releases.json</code> から手動で削除してください：</p>
-      <pre id="delete-json" class="small"></pre>
-      <button id="close-delete">閉じる</button>
-    </div>
-  </div>
+        <button type="submit" class="primary">番組データを追加</button>
+      </form>
 
-  <footer>
-    <p>管理は <code>data/releases.json</code> を編集してください。</p>
-  </footer>
+      <div class="csv-actions">
+        <button id="export-csv" type="button">CSVを書き出し</button>
+        <button id="import-csv" type="button">CSVを読み込み</button>
+        <input id="csv-file-input" type="file" accept=".csv,text/csv" hidden />
+      </div>
+    </section>
+  </main>
 
   <script src="app.js"></script>
 </body>
