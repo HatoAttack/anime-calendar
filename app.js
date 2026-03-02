@@ -1,198 +1,243 @@
-// 今週の日曜を取得（表示固定）
-const currentSunday = getSunday(new Date());
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+const MEDIA_DOMAINS = {
+  "Netflix": "netflix.com",
+  "Prime Video": "primevideo.com",
+  "Disney+": "disneyplus.com",
+  "U-NEXT": "video.unext.jp",
+  "ABEMA": "abema.tv",
+  "dアニメ": "anime.dmkt-sp.jp",
+  "Hulu": "hulu.jp",
+  "Lemino": "lemino.docomo.ne.jp"
+};
+
+let programData = [
+  ["Netflix", 1, "00:00", "サンプル番組A"],
+  ["ABEMA", 3, "23:30", "サンプル番組B"],
+  ["dアニメ", 6, "21:00", "サンプル番組C"]
+];
+
 document.addEventListener("DOMContentLoaded", () => {
-  render();
-  setupAdmin();
+  renderCalendar(new Date());
+  setupCsvTools();
 });
 
-// カレンダー描画
-async function render() {
-  const data = await fetch("data/releases.json").then(r => r.json());
-  const container = document.getElementById("calendar-container");
-  container.innerHTML = "";
+function renderCalendar(accessDate) {
+  const days = getCenteredWeek(accessDate);
+  const dateHeaderRow = document.getElementById("header-date-row");
+  const weekdayHeaderRow = document.getElementById("header-weekday-row");
+  const programRow = document.getElementById("program-row");
 
-  const weekDates = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(currentSunday);
-    d.setDate(d.getDate() + i);
-    weekDates.push(d);
-  }
+  dateHeaderRow.innerHTML = "";
+  weekdayHeaderRow.innerHTML = "";
+  programRow.innerHTML = "";
 
-  // 週範囲表示
-  const fmt = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" });
-  document.getElementById("week-range").textContent =
-    `${fmt.format(weekDates[0])} 〜 ${fmt.format(weekDates[6])}`;
+  days.forEach((date) => {
+    const dateHeader = document.createElement("th");
+    dateHeader.textContent = formatMonthDay(date);
 
-  // 曜日ごとに分類（ローカル時刻の曜日と時間で振り分け）
-  const byDay = {}; // key YYYY-MM-DD
-  data.forEach(item => {
-    if (!item.weekday || !item.time || !item.platform) return;
-    // currentSunday 週のその曜日の基準日付
-    const dayOffset = parseInt(item.weekday, 10);
-    const d = new Date(currentSunday);
-    d.setDate(d.getDate() + dayOffset);
-    // 時間をセット（ローカルタイム）
-    const [hh, mm] = item.time.split(":").map(s => parseInt(s, 10));
-    d.setHours(hh, mm, 0, 0);
-    const key = d.toISOString().slice(0, 10);
-    if (!byDay[key]) byDay[key] = [];
-    // Build display object
-    byDay[key].push({
-      anime_title: item.anime_title,
-      detail_url: item.detail_url,
-      platform: item.platform,
-      platform_color: item.platform_color,
-      favicon_url: item.favicon_url,
-      datetime_local: d,
-      raw: item // for deletion reference
-    });
-  });
+    const weekdayHeader = document.createElement("th");
+    weekdayHeader.textContent = WEEKDAY_LABELS[date.getDay()];
 
-  // カレンダーグリッド
-  const cal = document.createElement("div");
-  cal.className = "calendar";
-  weekDates.forEach(d => {
-    const dayKey = d.toISOString().slice(0, 10);
-    const dayDiv = document.createElement("div");
-    dayDiv.className = "day";
-    const weekday = d.toLocaleDateString("ja-JP", { weekday: "short" });
-    const header = document.createElement("div");
-    header.className = "day-header";
-    header.textContent = `${weekday} ${d.getMonth() + 1}/${d.getDate()}`;
-    dayDiv.appendChild(header);
+    const cell = document.createElement("td");
+    if (isSameDay(date, accessDate)) {
+      cell.classList.add("today");
+    }
 
-    const list = byDay[dayKey] || [];
-    if (list.length === 0) {
-      const none = document.createElement("div");
-      none.className = "small";
-      none.textContent = "対象の最新話なし";
-      dayDiv.appendChild(none);
+    const dayPrograms = getProgramsByWeekday(date.getDay());
+    if (dayPrograms.length === 0) {
+      const placeholder = document.createElement("span");
+      placeholder.className = "placeholder";
+      placeholder.textContent = "番組データなし";
+      cell.appendChild(placeholder);
     } else {
-      // 時刻順
-      list.sort((a, b) => a.datetime_local - b.datetime_local);
-      list.forEach(entry => {
-        const rDiv = document.createElement("div");
-        rDiv.className = "release";
-        rDiv.style.cursor = "pointer";
-        // プラットフォームバッジ
-        const badge = document.createElement("div");
-        badge.className = "badge";
-        const plat = document.createElement("div");
-        plat.className = "platform";
-        plat.style.background = entry.platform_color || "#666";
-        plat.textContent = entry.platform;
-        const img = document.createElement("img");
-        img.src = entry.favicon_url;
-        img.alt = entry.platform;
-        img.width = 16;
-        img.height = 16;
-        img.style.borderRadius = "3px";
-        img.style.marginRight = "4px";
-        const platformWrap = document.createElement("div");
-        platformWrap.style.display = "inline-flex";
-        platformWrap.style.alignItems = "center";
-        platformWrap.appendChild(img);
-        platformWrap.appendChild(plat);
-        badge.appendChild(platformWrap);
-        rDiv.appendChild(badge);
-
-        // タイトル＋リンク
-        const title = document.createElement("div");
-        title.style.marginLeft = "8px";
-        const a = document.createElement("a");
-        a.href = entry.detail_url;
-        a.className = "title-link";
-        a.textContent = entry.anime_title;
-        a.target = "_blank";
-        title.appendChild(a);
-        rDiv.appendChild(title);
-
-        // 時刻
-        const tm = document.createElement("div");
-        tm.className = "time";
-        const fmtTime = new Intl.DateTimeFormat("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-        tm.textContent = fmtTime.format(entry.datetime_local);
-        rDiv.appendChild(tm);
-
-        // クリックで削除モーダル
-        rDiv.addEventListener("click", () => {
-          showDeleteModal(entry);
-        });
-
-        dayDiv.appendChild(rDiv);
+      dayPrograms.forEach((program) => {
+        cell.appendChild(createProgramCard(program));
       });
     }
 
-    cal.appendChild(dayDiv);
+    dateHeaderRow.appendChild(dateHeader);
+    weekdayHeaderRow.appendChild(weekdayHeader);
+    programRow.appendChild(cell);
   });
-  container.appendChild(cal);
+
+  const rangeText = `${formatMonthDay(days[0])} 〜 ${formatMonthDay(days[6])}`;
+  document.getElementById("date-range").textContent = `表示範囲: ${rangeText}`;
 }
 
-// 日曜取得
-function getSunday(d) {
-  const dt = new Date(d);
-  const day = dt.getDay();
-  dt.setDate(dt.getDate() - day);
-  dt.setHours(0, 0, 0, 0);
-  return dt;
-}
+function setupCsvTools() {
+  const form = document.getElementById("program-form");
+  const mediaInput = document.getElementById("media-input");
+  const weekdayInput = document.getElementById("weekday-input");
+  const timeInput = document.getElementById("time-input");
+  const titleInput = document.getElementById("title-input");
+  const fileInput = document.getElementById("csv-file-input");
 
-// 管理フォームセットアップ
-function setupAdmin() {
-  document.getElementById("generate-json").addEventListener("click", e => {
-    e.preventDefault();
-    const anime_title = document.getElementById("anime_title").value.trim();
-    const detail_url = document.getElementById("detail_url").value.trim();
-    const platformSelect = document.getElementById("platform_select");
-    const platform = platformSelect.value;
-    const platform_color = platformSelect.selectedOptions[0].dataset.color || "#666";
-    const domain = platformSelect.selectedOptions[0].dataset.domain || "";
-    const favicon_url = domain
-      ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}`
-      : "";
-    const weekday = document.getElementById("weekday_select").value;
-    const time = document.getElementById("time_input").value;
+  document.getElementById("export-csv").addEventListener("click", () => {
+    downloadCsv(toCsv(programData));
+  });
 
-    if (!anime_title || !platform || !weekday || !time) {
-      alert("番組名・プラットフォーム・曜日・時間は必須です。");
+  document.getElementById("import-csv").addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
       return;
     }
 
-    const obj = {
-      anime_title,
-      detail_url,
-      platform,
-      platform_color,
-      favicon_url,
-      weekday, // 0=日 ... 6=土
-      time // HH:MM local
-    };
-    document.getElementById("generated-json").textContent = JSON.stringify(obj, null, 2);
+    const text = await file.text();
+    const parsed = parseCsv(text);
+    if (parsed.length === 0) {
+      alert("読み込めるCSVデータがありません。\nmedia,weekday,hh:mm,title 形式で入力してください。");
+      fileInput.value = "";
+      return;
+    }
+
+    programData = parsed;
+    renderCalendar(new Date());
+    fileInput.value = "";
   });
 
-  // モーダル関連
-  document.getElementById("close-delete").addEventListener("click", () => {
-    hideDeleteModal();
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const newRow = [
+      mediaInput.value,
+      Number(weekdayInput.value),
+      timeInput.value,
+      titleInput.value.trim()
+    ];
+
+    if (!newRow[3]) {
+      alert("タイトルを入力してください。");
+      return;
+    }
+
+    programData.push(newRow);
+    renderCalendar(new Date());
+    form.reset();
   });
 }
 
-function showDeleteModal(entry) {
-  document.getElementById("delete-info").textContent =
-    `${entry.anime_title}（${entry.platform}） ${new Intl.DateTimeFormat("ja-JP", {
-      weekday: "short",
-      month: "numeric",
-      day: "numeric"
-    }).format(entry.datetime_local)} ${new Intl.DateTimeFormat("ja-JP", {
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(entry.datetime_local)}`;
-  document.getElementById("delete-json").textContent = JSON.stringify(entry.raw, null, 2);
-  document.getElementById("delete-modal").classList.remove("hidden");
+function downloadCsv(csv) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "anime-programs.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
-function hideDeleteModal() {
-  document.getElementById("delete-modal").classList.add("hidden");
+function toCsv(rows) {
+  const header = "media,weekday,time,title";
+  const body = rows.map((row) => row.map(escapeCsvField).join(",")).join("\n");
+  return `${header}\n${body}`;
+}
+
+function parseCsv(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const dataLines = ["media,weekday,time,title", "media,weekday,hh:mm,title"].includes(lines[0].toLowerCase()) ? lines.slice(1) : lines;
+
+  return dataLines
+    .map((line) => line.split(",").map((value) => value.trim()))
+    .filter((cols) => cols.length >= 4)
+    .map(([media, weekdayRaw, time, ...titleParts]) => {
+      const weekday = Number(weekdayRaw);
+      const title = titleParts.join(",");
+      return [media, weekday, time, title];
+    })
+    .filter((item) => {
+      const [, weekday, time, title] = item;
+      return Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 && /^\d{2}:\d{2}$/.test(time) && title;
+    });
+}
+
+function escapeCsvField(value) {
+  const str = String(value);
+  return /[",\n]/.test(str) ? `"${str.replaceAll('"', '""')}"` : str;
+}
+
+function getProgramsByWeekday(weekday) {
+  return programData
+    .filter((item) => item[1] === weekday)
+    .sort((a, b) => a[2].localeCompare(b[2]))
+    .map(([media, day, time, title]) => ({
+      media,
+      weekday: day,
+      time,
+      title
+    }));
+}
+
+function createProgramCard(program) {
+  const card = document.createElement("article");
+  card.className = "program-card";
+
+  const title = document.createElement("p");
+  title.className = "program-title";
+  title.textContent = program.title;
+
+  const meta = document.createElement("div");
+  meta.className = "program-meta";
+
+  const icon = document.createElement("img");
+  icon.className = "media-favicon";
+  icon.src = getFaviconUrl(program.media);
+  icon.alt = program.media;
+  icon.title = program.media;
+  icon.width = 16;
+  icon.height = 16;
+
+  const schedule = document.createElement("span");
+  schedule.textContent = `${WEEKDAY_LABELS[program.weekday]} / ${program.time}`;
+
+  meta.appendChild(icon);
+  meta.appendChild(schedule);
+
+  card.appendChild(title);
+  card.appendChild(meta);
+  return card;
+}
+
+function getFaviconUrl(media) {
+  const domain = MEDIA_DOMAINS[media] || "example.com";
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+}
+
+function getCenteredWeek(centerDate) {
+  const days = [];
+  for (let diff = -3; diff <= 3; diff += 1) {
+    const d = new Date(centerDate);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(centerDate.getDate() + diff);
+    days.push(d);
+  }
+  return days;
+}
+
+function formatMonthDay(date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}/${day}`;
+}
+
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
